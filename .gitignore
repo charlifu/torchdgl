@@ -31,6 +31,9 @@
 *.out
 *.app
 
+# Torchscript files
+*.pt
+
 build/
 .vscode
 .cache

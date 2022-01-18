@@ -7,7 +7,7 @@ find_package(Torch REQUIRED)
 find_library(DGL_LIB_PATH Name dgl PATHS /home/qiang/workspace/torchdgl/third_party/dgl/build/)
 
 include_directories("include")
-include_directories(third_party/dgl/src/graph)
+include_directories(third_party/dgl/src)
 include_directories(third_party/dgl/include)
 include_directories(third_party/dgl/third_party/dlpack/include)
 include_directories(third_party/dgl/third_party/dmlc-core/include)
