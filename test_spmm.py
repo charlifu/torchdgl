@@ -95,14 +95,14 @@ def main(args):
         run_dgl(g, features)
         if args.gpu >= 0:
             th.cuda.synchronize()
-        # th.cuda.nvtx.range_push("spmm start")
+        th.cuda.nvtx.range_push("spmm start")
         for _ in range(n):
             start_run = time.perf_counter()
             run_dgl(g, features)
             if args.gpu >= 0:
                 th.cuda.synchronize()
             runtime += time.perf_counter() - start_run
-        # th.cuda.nvtx.range_pop()
+        th.cuda.nvtx.range_pop()
     elif args.impl == "pyg":
         run_pyg(edge_index, features)
         if args.gpu >= 0:

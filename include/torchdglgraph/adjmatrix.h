@@ -88,18 +88,14 @@ struct AdjMatrix : torch::CustomClassHolder {
         return coo_->num_cols;
     }
 
-    // AdjMatrix reverse() {
-    //     auto newcoo = (this->coo_defined_ ? 
-    //         std::make_shared<dgl::aten::COOMatrix>(dgl::aten::COOTranspose(*this->coo_)) : nullptr);
-    //     dgl::dgl_format_code_t newformat = (dgl::dgl_format_code_t)0U;
-    //     if (this->format_ & dgl::CSC_CODE)
-    //         newformat |= dgl::CSR_CODE;
-    //     if (this->format_ & dgl::CSR_CODE)
-    //         newformat |= dgl::CSC_CODE;
-    //     if (this->format_ & dgl::COO_CODE)
-    //         newformat |= dgl::COO_CODE;
-    //     return AdjMatrix(this->csr_, this->csc_, newcoo, newformat);
-    // }
+    inline int64_t edge_num() {
+        if (csc_defined_)
+            return csc_->indices->shape[0];
+        else if (csr_defined_)
+            return csr_->indices->shape[0];
+        else
+            return coo_->row->shape[0];
+    }
 
     void toggle_reversed() {
         this->reversed_ = !(this->reversed_);
@@ -109,21 +105,46 @@ struct AdjMatrix : torch::CustomClassHolder {
     std::shared_ptr<dgl::aten::CSRMatrix> GetCSCMatrix(bool inplace = true);
     std::shared_ptr<dgl::aten::CSRMatrix> GetCSRMatrix(bool inplace = true);
     std::shared_ptr<dgl::aten::COOMatrix> GetCOOMatrix(bool inplace = true);
-    inline std::shared_ptr<dgl::aten::CSRMatrix> GetCSC(bool inplace = true);
-    inline std::shared_ptr<dgl::aten::CSRMatrix> GetCSR(bool inplace = true);
-    inline std::shared_ptr<dgl::aten::COOMatrix> GetCOO(bool inplace = true);
+    std::shared_ptr<dgl::aten::CSRMatrix> GetCSC(bool inplace = true);
+    std::shared_ptr<dgl::aten::CSRMatrix> GetCSR(bool inplace = true);
+    std::shared_ptr<dgl::aten::COOMatrix> GetCOO(bool inplace = true);
     torch::Tensor indegrees(c10::optional<torch::Tensor> node_ids = c10::nullopt);
     torch::Tensor outdegrees(c10::optional<torch::Tensor> node_ids = c10::nullopt);
 
     void SpMM(const std::string & op, const std::string & reduce,
                         dgl::NDArray ufeat, dgl::NDArray efeat,
                         dgl::NDArray out, std::vector<dgl::NDArray> out_aux);
+
+    void SDDMM(const std::string & op, dgl::NDArray lhs, dgl::NDArray rhs, 
+                dgl::NDArray out, int lhs_target, int rhs_target);
+
+    void Edge_softmax_forward(const std::string & op,
+                            dgl::NDArray ufeat,
+                            dgl::NDArray efeat,
+                            dgl::NDArray out);
+    void Edge_softmax_backward(const std::string& op,
+                            NDArray out,
+                            NDArray sds,
+                            NDArray back_out,
+                            NDArray ufeat);
     
+    torch::Tensor _edge_softmax_forward(c10::optional<torch::Tensor> e,
+                                        const std::string & op);
+    torch::Tensor _edge_softmax_backward(c10::optional<torch::Tensor> out,
+                                        c10::optional<torch::Tensor> sds);
+
     std::tuple<torch::Tensor, c10::optional<torch::Tensor>, c10::optional<torch::Tensor>> 
                 _gspmm(const std::string & op, const std::string & reduce,
                         c10::optional<torch::Tensor> ufeat, c10::optional<torch::Tensor> efeat);
     torch::Tensor gspmm(std::string op, std::string reduce,
                         c10::optional<torch::Tensor> ufeat, c10::optional<torch::Tensor> efeat);
+
+    torch::Tensor _gsddmm(const std::string & op, c10::optional<torch::Tensor> lhs,
+                            c10::optional<torch::Tensor> rhs,
+                            std::string lhs_target = "u", std::string rhs_target = "v");
+    torch::Tensor gsddmm(std::string op, c10::optional<torch::Tensor> lhs_data,
+                            c10::optional<torch::Tensor> rhs_data,
+                            std::string lhs_target = "u", std::string rhs_target = "v");
 };
 
 #endif // INCLUDE_TORCHDGLGRAPH_ADJMATRIX_H_

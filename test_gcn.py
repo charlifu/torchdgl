@@ -295,12 +295,12 @@ def main(args):
     model = None
 
     # create GCN model
-    if args.compile == "script":
+    if args.impl == "script":
         model = model1
         print("Using Torchscript")
         print(model.graph)
 
-    elif args.compile == "pyg":
+    elif args.impl == "pyg":
         model = model3
         print("Using Pyg")
 
@@ -318,12 +318,23 @@ def main(args):
         if epoch >= 3:
             t0 = time.time()
         # forward
+        # if epoch == 100:
+        #     th.cuda.nvtx.range_push("forward")
         logits = model(features)
         loss = loss_fcn(logits[train_mask], labels[train_mask])
+        # if epoch == 100:
+        #     th.cuda.nvtx.range_pop()
 
         optimizer.zero_grad()
+        # if epoch == 100:
+        #     th.cuda.nvtx.range_push("backward")
         loss.backward()
         optimizer.step()
+
+        if args.gpu > 0:
+            th.cuda.synchronize()
+        # if epoch == 100:
+        #     th.cuda.nvtx.range_pop()
 
         if epoch >= 3:
             dur.append(time.time() - t0)
@@ -341,7 +352,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='GCN')
     register_data_args(parser)
-    parser.add_argument("--compile", type=str, default="dgl",
+    parser.add_argument("--impl", type=str, default="dgl",
             help="use torch script or not")
     parser.add_argument("--dropout", type=float, default=0.5,
             help="dropout probability")
