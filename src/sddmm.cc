@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-bool sddmm_cache_X(const std::string & op, 
+bool sddmm_cache_X(const std::string & op,
                   bool req_grad_X,
                   bool req_grad_Y) {
     if ((op == "mul" || op == "dot") && req_grad_Y)

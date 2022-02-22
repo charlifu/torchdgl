@@ -4,7 +4,7 @@ project(TorchDGLGraph)
 find_package(PythonInterp REQUIRED)
 find_package(Torch REQUIRED)
 
-find_library(DGL_LIB_PATH Name dgl PATHS /home/qiang/workspace/torchdgl/third_party/dgl/build/)
+find_library(DGL_LIB_PATH Name dgl PATHS ${CMAKE_SOURCE_DIR}/third_party/dgl/build/)
 
 include_directories("include")
 include_directories(third_party/dgl/src)

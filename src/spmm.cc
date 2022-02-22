@@ -4,7 +4,6 @@
 #include <dgl/bcast.h>
 #include <array/kernel_decl.h>
 
-
 #include <c10/util/ArrayRef.h>
 #include <c10/util/intrusive_ptr.h>
 #include <torch/custom_class.h>
@@ -324,6 +323,6 @@ TORCH_LIBRARY_FRAGMENT(DGL, m) {
                         std::string op, std::string reduce,
                         c10::optional<torch::Tensor> ufeat,
                         c10::optional<torch::Tensor> efeat) {
-        return GSpMM::apply(adj, op, reduce, ufeat, efeat);                                          
+        return GSpMM::apply(adj, op, reduce, ufeat, efeat);
     });
 }
