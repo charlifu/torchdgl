@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-bool sddmm_cache_X(const std::string & op,
+inline bool sddmm_cache_X(const std::string & op,
                   bool req_grad_X,
                   bool req_grad_Y) {
     if ((op == "mul" || op == "dot") && req_grad_Y)
@@ -21,7 +21,7 @@ bool sddmm_cache_X(const std::string & op,
     return false;
 }
 
-bool sddmm_cache_Y(const std::string & op,
+inline bool sddmm_cache_Y(const std::string & op,
                   bool req_grad_X,
                   bool req_grad_Y) {
     if ((op == "mul" || op == "dot") && req_grad_X)
@@ -140,8 +140,8 @@ struct GSDDMM : public torch::autograd::Function<GSDDMM> {
         ctx->saved_data["op"] = op;
         ctx->saved_data["lhs_target"] = lhs_target;
         ctx->saved_data["rhs_target"] = rhs_target;
-        ctx->saved_data["X_shape"] = to_vec(X_shape);
-        ctx->saved_data["Y_shape"] = to_vec(Y_shape);
+        ctx->saved_data["X_shape"] = X_shape.vec();
+        ctx->saved_data["Y_shape"] = Y_shape.vec();
 
         bool req_grad_X = (X ? X.value().requires_grad() : false);
         bool req_grad_Y = (Y ? Y.value().requires_grad() : false);
@@ -187,7 +187,7 @@ struct GSDDMM : public torch::autograd::Function<GSDDMM> {
 
         if (op != "copy_rhs" && needs_input_grad[2]) {
             if (lhs_target == "u" || lhs_target == "v") {
-                if (lhs_target == "v") 
+                if (lhs_target != "v") 
                     adj->toggle_reversed();
                 if (op == "add" || op == "copy_lhs")
                     dX = adj->gspmm("copy_rhs", "sum", c10::nullopt, grad_input[0]);
@@ -196,10 +196,10 @@ struct GSDDMM : public torch::autograd::Function<GSDDMM> {
                         dX = adj->gspmm("copy_rhs", "sum", c10::nullopt, grad_input[0]) * Y.value();
                     else if (rhs_target == "e")
                         dX = adj->gspmm("copy_rhs", "sum", c10::nullopt, grad_input[0] * Y.value());
-                    else
+                    else // rhs_target != lhs_target
                         dX = adj->gspmm("mul", "sum", Y.value(), grad_input[0]);
                 }
-                if (lhs_target == "v") 
+                if (lhs_target != "v") 
                     adj->toggle_reversed();
             }
             else { // lhs_target == "e"
@@ -213,10 +213,10 @@ struct GSDDMM : public torch::autograd::Function<GSDDMM> {
 
         if (op != "copy_lhs" && needs_input_grad[3]) {
             if (rhs_target == "u" || rhs_target == "v") {
-                if (rhs_target == "v")
+                if (rhs_target != "v")
                     adj->toggle_reversed();
                 
-                if (op == "add" && op == "copy_rhs")
+                if (op == "add" || op == "copy_rhs")
                     dY = adj->gspmm("copy_rhs", "sum", c10::nullopt, grad_input[0]);
                 else { // mul, dot
                     if (lhs_target == rhs_target)
@@ -227,7 +227,7 @@ struct GSDDMM : public torch::autograd::Function<GSDDMM> {
                         dY = adj->gspmm("mul", "sum", X, grad_input[0]);
                 }
 
-                if (rhs_target == "v")
+                if (rhs_target != "v")
                     adj->toggle_reversed();
             }
             else {
@@ -255,6 +255,15 @@ TORCH_LIBRARY_FRAGMENT(DGL, m) {
                         c10::optional<torch::Tensor> X,
                         c10::optional<torch::Tensor> Y,
                         std::string lhs_target, std::string rhs_target) {
+    if (op == "sub") {
+        op = "add";
+        Y = -Y.value();
+    }
+
+    if (op == "div") {
+        op = "mul";
+        Y = Y.value().reciprocal();
+    }
         return GSDDMM::apply(adj, op, X, Y, lhs_target, rhs_target);                                          
     });
 }

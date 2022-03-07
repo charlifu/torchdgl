@@ -13,7 +13,8 @@
 #include <string>
 #include <vector>
 
-bool need_reduce_last_dim(const c10::optional<torch::Tensor> & ufeat, const c10::optional<torch::Tensor> & efeat) {
+bool need_reduce_last_dim(const c10::optional<torch::Tensor> & ufeat, 
+                        const c10::optional<torch::Tensor> & efeat) {
     if (!ufeat || !efeat)
         return false;
     auto ushp = ufeat.value().sizes();
@@ -22,7 +23,10 @@ bool need_reduce_last_dim(const c10::optional<torch::Tensor> & ufeat, const c10:
     return ushp.slice(1, us-2).equals(eshp.slice(1, es-2)) && eshp.back() == 1 && ushp.back() > 1;
 }
 
-bool spmm_cache_ufeat(const std::string & op, const std::string & reduce, bool req_grad_u, bool req_grad_e) {
+bool spmm_cache_ufeat(const std::string & op, 
+                    const std::string & reduce, 
+                    bool req_grad_u, 
+                    bool req_grad_e) {
     if (op != "copy_lhs" && req_grad_e) {
         if (reduce == "sum")
             return true;
@@ -34,7 +38,10 @@ bool spmm_cache_ufeat(const std::string & op, const std::string & reduce, bool r
     return false;
 }
 
-bool spmm_cache_efeat(const std::string & op, const std::string & reduce, bool req_grad_u, bool req_grad_e) {
+bool spmm_cache_efeat(const std::string & op, 
+                    const std::string & reduce, 
+                    bool req_grad_u, 
+                    bool req_grad_e) {
     if (op != "copy_rhs" && req_grad_u) {
         if (reduce == "sum") {
             if (op == "mul" || op == "add")
@@ -48,7 +55,10 @@ bool spmm_cache_efeat(const std::string & op, const std::string & reduce, bool r
     return false;
 }
 
-bool spmm_cache_argu(const std::string & op, const std::string & reduce, bool req_grad_u, bool req_grad_e) {
+bool spmm_cache_argu(const std::string & op, 
+                    const std::string & reduce, 
+                    bool req_grad_u, 
+                    bool req_grad_e) {
     if (req_grad_u || req_grad_e) {
         if (reduce == "min" || reduce == "max")
             return true;
@@ -56,7 +66,10 @@ bool spmm_cache_argu(const std::string & op, const std::string & reduce, bool re
     return false;
 }
 
-bool spmm_cache_arge(const std::string & op, const std::string & reduce, bool req_grad_u, bool req_grad_e) {
+bool spmm_cache_arge(const std::string & op, 
+                    const std::string & reduce, 
+                    bool req_grad_u, 
+                    bool req_grad_e) {
     if (req_grad_u || req_grad_e) {
         if (reduce == "min" || reduce == "max")
             return true;
@@ -65,9 +78,12 @@ bool spmm_cache_arge(const std::string & op, const std::string & reduce, bool re
 }
 
 
-void AdjMatrix::SpMM(const std::string & op, const std::string & reduce,
-                        dgl::NDArray ufeat, dgl::NDArray efeat,
-                        dgl::NDArray out, std::vector<dgl::NDArray> out_aux) {
+void AdjMatrix::SpMM(const std::string & op, 
+                    const std::string & reduce,
+                    dgl::NDArray ufeat, 
+                    dgl::NDArray efeat,
+                    dgl::NDArray out, 
+                    std::vector<dgl::NDArray> out_aux) {
     dgl::SparseFormat format = this->SelectFormat(dgl::CSC_CODE);
     const auto & bcast = dgl::CalcBcastOff(op, ufeat, efeat);
 
@@ -105,10 +121,14 @@ std::tuple<torch::Tensor, c10::optional<torch::Tensor>, c10::optional<torch::Ten
 
     // deal with scalar feature
     bool expand_u = false, expand_e = false;
-    if (use_u && ufeat.value().ndimension() == 1)
+    if (use_u && ufeat.value().ndimension() == 1) {
         ufeat = ufeat.value().unsqueeze(-1);
-    if (use_e && efeat.value().ndimension() == 1)
+        expand_u = true;
+    }
+    if (use_e && efeat.value().ndimension() == 1) {
         efeat = efeat.value().unsqueeze(-1);
+        expand_e = true;
+    }
     
     auto ctx = (use_u ? ufeat.value().device() : efeat.value().device());
     auto dtype = (use_u ? ufeat.value().dtype() : efeat.value().dtype());
@@ -137,11 +157,9 @@ std::tuple<torch::Tensor, c10::optional<torch::Tensor>, c10::optional<torch::Ten
     
     auto arg_u_nd = ToNDArray(arg_u);
     auto arg_e_nd = ToNDArray(arg_e);
-    // auto out = ToNDArray(v);
 
     this->SpMM(op, reduce, ToNDArray(ufeat), ToNDArray(efeat), ToNDArray(v), {arg_u_nd, arg_e_nd});
 
-    // v = at::fromDLPack(out.ToDLPack());
     if (!arg_u)
         arg_u = at::fromDLPack(arg_u_nd.ToDLPack());
     if (!arg_e)
@@ -159,7 +177,8 @@ std::tuple<torch::Tensor, c10::optional<torch::Tensor>, c10::optional<torch::Ten
 } 
 
 torch::Tensor AdjMatrix::gspmm(std::string op, std::string reduce,
-                        c10::optional<torch::Tensor> ufeat, c10::optional<torch::Tensor> efeat) {
+                        c10::optional<torch::Tensor> ufeat,
+                        c10::optional<torch::Tensor> efeat) {
     if (op == "sub") {
         op = "add";
         efeat = -efeat.value();
@@ -176,7 +195,7 @@ struct GSpMM : public torch::autograd::Function<GSpMM> {
     static torch::Tensor forward(
                         torch::autograd::AutogradContext* ctx,
                         const c10::intrusive_ptr<AdjMatrix> &adj,
-                        std::string op, std::string reduce,
+                        std::string & op, std::string & reduce,
                         c10::optional<torch::Tensor> ufeat,
                         c10::optional<torch::Tensor> efeat) {
         auto rst = adj->_gspmm(op, reduce, ufeat, efeat);
@@ -189,8 +208,8 @@ struct GSpMM : public torch::autograd::Function<GSpMM> {
         ctx->saved_data["adj"] = adj;
         ctx->saved_data["op"] = op;
         ctx->saved_data["reduce"] = reduce;
-        ctx->saved_data["ushp"] = to_vec(ushp);
-        ctx->saved_data["eshp"] = to_vec(eshp);
+        ctx->saved_data["ushp"] = ushp.vec();
+        ctx->saved_data["eshp"] = eshp.vec();
         ctx->saved_data["dtype"] = dtype.toScalarType();
         ctx->saved_data["device"] = device;
         ctx->saved_data["reduce_last"] = reduce_last;
@@ -263,7 +282,7 @@ struct GSpMM : public torch::autograd::Function<GSpMM> {
             }
             else { // max/min
                 auto dZ_dim = grad_input[0].sizes().size();
-                du = torch::zeros(shape_concat(ushp.slice(1), grad_input[0].sizes().slice(1,dZ_dim-1)),
+                du = torch::zeros(shape_concat({ushp[0]}, grad_input[0].sizes().slice(1,dZ_dim-1)),
                                     torch::TensorOptions()
                                     .dtype(dtype)
                                     .device(device));
@@ -294,14 +313,14 @@ struct GSpMM : public torch::autograd::Function<GSpMM> {
             }
             else { // max/min
                 auto dZ_dim = grad_input[0].sizes().size();
-                de = torch::zeros(shape_concat(eshp.slice(1), grad_input[0].sizes().slice(1, dZ_dim-1)),
+                de = torch::zeros(shape_concat({eshp[0]}, grad_input[0].sizes().slice(1, dZ_dim-1)),
                                     torch::TensorOptions()
                                     .dtype(dtype)
                                     .device(device));
                 if (op == "mul") {
                     auto grad = _expand(ufeat.value(), grad_input[0].sizes().slice(1, dZ_dim-1))
-                                .gather(0, arg_e.value().toType(torch::kInt64)) * grad_input[0];
-                    de.scatter_add(0, arg_e.value().toType(torch::kInt64), grad);
+                                .gather(0, arg_u.value().toType(torch::kInt64)) * grad_input[0];
+                    de.scatter_add_(0, arg_e.value().toType(torch::kInt64), grad);
                 }
                 else if (op == "add" || op == "copy_rhs") {
                     de.scatter_add_(0, arg_e.value().toType(torch::kInt64), grad_input[0]);
@@ -323,6 +342,14 @@ TORCH_LIBRARY_FRAGMENT(DGL, m) {
                         std::string op, std::string reduce,
                         c10::optional<torch::Tensor> ufeat,
                         c10::optional<torch::Tensor> efeat) {
+    if (op == "sub") {
+        op = "add";
+        efeat = -efeat.value();
+    }
+    if (op == "div") {
+        op = "mul";
+        efeat = efeat.value().reciprocal();
+    }
         return GSpMM::apply(adj, op, reduce, ufeat, efeat);
     });
 }

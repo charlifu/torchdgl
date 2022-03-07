@@ -27,15 +27,13 @@ c10::Device get_device(DLContext ctx);
 
 c10::ScalarType get_dtype(DLDataType dtype); 
 
-c10::IntArrayRef infer_broadcast_shape(const std::string & op, c10::IntArrayRef shp1, c10::IntArrayRef shp2);
+std::vector<int64_t> infer_broadcast_shape(const std::string & op, c10::IntArrayRef shp1, c10::IntArrayRef shp2);
 
 torch::Tensor _reduce_grad(torch::Tensor grad, c10::IntArrayRef shape);
 
-c10::IntArrayRef shape_concat(c10::IntArrayRef a, c10::IntArrayRef b);
+std::vector<int64_t> shape_concat(c10::IntArrayRef a, c10::IntArrayRef b);
 
 torch::Tensor _expand(torch::Tensor x, c10::IntArrayRef shape);
-
-std::vector<int64_t> to_vec(c10::IntArrayRef s);
 
 static std::map<std::string, int> target_mapping {
     {"u", 0},

@@ -45,22 +45,22 @@ c10::ScalarType get_dtype(DLDataType dtype) {
     return torch::kFloat;
 }
 
-c10::IntArrayRef infer_broadcast_shape(const std::string &op, c10::IntArrayRef shp1, c10::IntArrayRef shp2) {
+std::vector<int64_t> infer_broadcast_shape(const std::string &op, c10::IntArrayRef shp1, c10::IntArrayRef shp2) {
     auto pad_shp1 = shp1;
     auto pad_shp2 = shp2;
     if (op == "dot" && shp1.back() != shp2.back())
         LOG(FATAL) << "Dot operator is only available for arrays with the same size on last dimension, but got {} and {}.";
 
     if (op == "copy_lhs")
-        return shp1;
+        return shp1.vec();
     if (op == "copy_rhs")
-        return shp2;
+        return shp2.vec();
 
     if (shp1.size() > shp2.size()) {
         std::vector<int64_t> tmpvec(shp1.size() - shp2.size(), 1);
         for (int i = 0; i < shp2.size(); ++i)
             tmpvec.push_back(shp2[i]);
-        pad_shp1 = c10::IntArrayRef(tmpvec);
+        pad_shp2 = c10::IntArrayRef(tmpvec);
     }
     else if (shp1.size() < shp2.size()) {
         std::vector<int64_t> tmpvec(shp2.size() - shp1.size(), 1);
@@ -78,7 +78,7 @@ c10::IntArrayRef infer_broadcast_shape(const std::string &op, c10::IntArrayRef s
     }
     if (op == "dot")
         rst[rst.size() - 1] = 1;
-    return c10::IntArrayRef(rst);
+    return rst;
 }
 
 torch::Tensor _reduce_grad(torch::Tensor grad, c10::IntArrayRef shape) {
@@ -114,13 +114,13 @@ torch::Tensor _reduce_grad(torch::Tensor grad, c10::IntArrayRef shape) {
     return grad.view(rst_shape);
 }
 
-c10::IntArrayRef shape_concat(c10::IntArrayRef a, c10::IntArrayRef b) {
+std::vector<int64_t> shape_concat(c10::IntArrayRef a, c10::IntArrayRef b) {
     std::vector<int64_t> rst_vec;
     for (int i = 0; i < a.size(); ++i)
         rst_vec.push_back(a[i]);
     for (int i = 0; i < b.size(); ++i)
         rst_vec.push_back(b[i]);
-    return c10::IntArrayRef(rst_vec);
+    return rst_vec;
 }
 
 torch::Tensor _expand(torch::Tensor x, c10::IntArrayRef shape) {

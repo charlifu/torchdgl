@@ -19,6 +19,7 @@ from dgl.data import RedditDataset
 from torch_sparse import SparseTensor
 from torch_geometric.nn import MessagePassing
 from torch_sparse import matmul
+
 th.classes.load_library("build/libadjmatrix.so")
 AdjMatrix = th.classes.DGL.AdjMatrix
 
