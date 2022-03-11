@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import dgl
 from dgl.data import register_data_args
 from dgl.data import CoraGraphDataset, CiteseerGraphDataset, PubmedGraphDataset
-from dgl.data import RedditDataset
+from dgl.data import RedditDataset, AmazonCoBuyComputerDataset
 from torch_sparse import SparseTensor
 
 import GAT_DGL, GAT_PyG, GAT_Script
@@ -64,7 +64,6 @@ def main(args):
               val_mask.int().sum().item(),
               test_mask.int().sum().item()))
 
-    # normalization
     model = None
 
     src, dst = g.edges()
@@ -76,7 +75,7 @@ def main(args):
                     n_classes,
                     args.dropout)
         if cuda:
-            m.cuda()
+            m.cuda(args.gpu)
         model = th.jit.script(m)
         print(model.graph)
 
@@ -87,7 +86,7 @@ def main(args):
                     n_classes,
                     args.dropout)
         if cuda:
-            model.cuda()
+            model.cuda(args.gpu)
 
     elif args.impl == "pyg":
         adj_pyg = SparseTensor(row=src, col=dst, sparse_sizes=(g.number_of_nodes(), g.number_of_nodes()))
@@ -98,7 +97,7 @@ def main(args):
                         n_classes,
                         args.dropout)
         if cuda:
-            model.cuda()
+            model.cuda(args.gpu)
 
     loss_fcn = th.nn.CrossEntropyLoss()
 
