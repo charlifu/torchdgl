@@ -10,7 +10,7 @@ In the Python side, DGL implements the forward and backward versions of all the 
 
 ![Current design](./images/old.png)
 
-However, the sparse matrix APIs are not directly exposed to the users, and they can not be recognized by TorchScript, which requires the op written in C++.
+However, the sparse matrix APIs are not directly exposed to the users, and they can not be recognized by TorchScript, which requires the op be written in C++.
 
 ## New Design
 We reuse `aten::CSRMatrix` and `aten::COOMatrix` for low-level storage and kernels, but propose a new abstraction called `AjdMatrix` responsible for managing different formats and conversion. Then we reimplement the autograd of sparse op in C++ and register them into TorchScript.
